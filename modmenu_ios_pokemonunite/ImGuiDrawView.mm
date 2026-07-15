@@ -42,9 +42,16 @@
 @implementation ImGuiDrawView
 
 // ======================= TOGGLES =======================
+// Todos comecam DESLIGADOS. Os hooks so sao instalados quando a feature e ligada
+// (instalacao preguicosa). Com tudo off, NENHUM hook e instalado -> jogo roda limpo.
 static bool bMapHack = false;   // Visao total (anti-Fog of War)
-static bool bAntiCheat = true;  // Neutraliza UpdateToCheckVisionStat (recomendado ON com o map hack)
+static bool bAntiCheat = false; // Neutraliza UpdateToCheckVisionStat
 static bool bAimbot = false;    // Forca auto-select de alvo nas skills
+
+// Estado de instalacao (para status no menu)
+static bool gInstalledMapHack = false;
+static bool gInstalledAntiCheat = false;
+static bool gInstalledAimbot = false;
 
 // ======================= MAP HACK HOOKS =======================
 // Todas retornam "visivel = true" quando bMapHack esta ligado.
@@ -99,24 +106,43 @@ void *hk_LSkill_SelectTargetByDir(void *self, void *inActor, void *inUseSlot, bo
     return o_LSkill_SelectTargetByDir(self, inActor, inUseSlot, bAuto, dir);
 }
 
-// ======================= INSTALACAO DOS HOOKS =======================
-static void install_hooks() {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        // Map Hack
+// ======================= INSTALACAO PREGUICOSA (por feature) =======================
+// Cada grupo so e instalado quando a feature correspondente e ligada pela 1a vez.
+// Assim isolamos culpados: se o crash sumir com tudo off, o problema esta em um hook.
+// Habilite UMA feature por vez para descobrir qual causa o crash na partida.
+
+static void install_maphack_hooks() {
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{
+        // Utility estaticas (mais seguras)
         DobbyHook((void *)getRealOffset(OFF_MVisionSysUtil_IsVisible),
                   (void *)hk_MVisionSysUtil_IsVisible, (void **)&o_MVisionSysUtil_IsVisible);
         DobbyHook((void *)getRealOffset(OFF_LVisionSysUtil_IsCampVisible),
                   (void *)hk_LVisionSysUtil_IsCampVisible, (void **)&o_LVisionSysUtil_IsCampVisible);
+        // Metodos de instancia (suspeitos de instabilidade — ver notas de teste)
         DobbyHook((void *)getRealOffset(OFF_LVisionSys_CheckVisible),
                   (void *)hk_LVisionSys_CheckVisible, (void **)&o_LVisionSys_CheckVisible);
         DobbyHook((void *)getRealOffset(OFF_LVisionSys_IsCampVisible),
                   (void *)hk_LVisionSys_IsCampVisible, (void **)&o_LVisionSys_IsCampVisible);
+        gInstalledMapHack = true;
+    });
+}
+
+static void install_anticheat_hooks() {
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{
         DobbyHook((void *)getRealOffset(OFF_LBattleStatSys_UpdateStat),
                   (void *)hk_LBattleStatSys_UpdateStat, (void **)&o_LBattleStatSys_UpdateStat);
-        // Aimbot
+        gInstalledAntiCheat = true;
+    });
+}
+
+static void install_aimbot_hooks() {
+    static dispatch_once_t t;
+    dispatch_once(&t, ^{
         DobbyHook((void *)getRealOffset(OFF_LSkill_SelectTargetByDir),
                   (void *)hk_LSkill_SelectTargetByDir, (void **)&o_LSkill_SelectTargetByDir);
+        gInstalledAimbot = true;
     });
 }
 
@@ -249,12 +275,20 @@ static bool MenDeal = true;
             ImGui::Checkbox("Aimbot de skills (auto-select alvo)", &bAimbot);
 
             ImGui::Separator();
-            ImGui::Text("v1.0 | UnityFramework | jp.pokemon.pokemonunite");
+            ImGui::TextWrapped("DEBUG: ligue UMA feature por vez e teste a partida para achar o crash.");
+            ImGui::Text("Hooks instalados: MapHack=%s | AntiCheat=%s | Aimbot=%s",
+                        gInstalledMapHack ? "SIM" : "nao",
+                        gInstalledAntiCheat ? "SIM" : "nao",
+                        gInstalledAimbot ? "SIM" : "nao");
+            ImGui::Text("v1.1 | UnityFramework | jp.pokemon.pokemonunite");
             ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
             ImGui::End();
 
-            // Instala os hooks na primeira abertura do menu (uma unica vez)
-            install_hooks();
+            // Instalacao PREGUICOSA: so instala o hook da feature quando ela e ligada.
+            // Com tudo desligado, nenhum hook e instalado -> jogo roda sem crash.
+            if (bMapHack)   install_maphack_hooks();
+            if (bAntiCheat) install_anticheat_hooks();
+            if (bAimbot)    install_aimbot_hooks();
         }
 
         ImGui::Render();
