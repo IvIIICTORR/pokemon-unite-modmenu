@@ -15,7 +15,13 @@ TWEAK_NAME = pumenu
 $(TWEAK_NAME)_FRAMEWORKS = UIKit Foundation Security QuartzCore CoreGraphics CoreText AVFoundation Accelerate GLKit SystemConfiguration GameController Metal MetalKit
 
 $(TWEAK_NAME)_CCFLAGS = -std=c++11 -fno-rtti -fno-exceptions -DNDEBUG
-$(TWEAK_NAME)_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-value
+# Flags aplicadas a TODOS os compiladores (C/ObjC/C++/ObjC++).
+# Suprime erros do toolchain novo do runner macOS (template feito com clang antigo):
+#   -Wno-error                     : nao tratar warnings como erro
+#   -fno-modules                   : evita "import of C++ module within extern C" (dobby.h)
+#   -Wno-nontrivial-memcall        : imgui.h usa memset(this,...) em tipos nao-triviais
+#   -Wno-module-import-in-extern-c : idem, seguranca extra
+$(TWEAK_NAME)_CFLAGS = -fobjc-arc -fno-modules -Wno-error -Wno-nontrivial-memcall -Wno-module-import-in-extern-c -Wno-deprecated-declarations -Wno-unused-variable -Wno-unused-value
 
 # Dobby (hook engine) - vem do template HuyJIT via CI
 $(TWEAK_NAME)_OBJ_FILES = 5Toubun/libdobby.a
