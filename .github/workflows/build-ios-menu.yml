@@ -1,0 +1,78 @@
+name: Build iOS Mod Menu (Pokemon Unite)
+
+# Compila o mod menu ImGui no runner macOS (voce NAO precisa de Mac).
+# Ao terminar, baixe os artefatos:
+#   - pumenu.dylib  -> injetar no IPA com Sideloadly (sideload / sem jailbreak)
+#   - *.deb         -> instalar via gerenciador de pacotes (jailbreak)
+
+on:
+  workflow_dispatch:        # roda manualmente pelo botao "Run workflow"
+  push:
+    paths:
+      - 'modmenu_ios_pokemonunite/**'
+      - '.github/workflows/build-ios-menu.yml'
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      THEOS: ${{ github.workspace }}/theos
+      PROJ: modmenu_ios_pokemonunite
+      UPSTREAM: https://github.com/34306/HuyJIT-ModMenu.git
+
+    steps:
+      - name: Checkout (nosso projeto)
+        uses: actions/checkout@v4
+
+      - name: Instalar dependencias (ldid, fakeroot, dpkg)
+        run: |
+          brew install ldid dpkg make || true
+
+      - name: Instalar Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git "$THEOS"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+
+      - name: Baixar iOS SDK
+        run: |
+          git clone --depth 1 https://github.com/theos/sdks.git /tmp/sdks
+          # Copia todas as SDKs disponiveis; o Theos escolhe a compativel
+          cp -r /tmp/sdks/*.sdk "$THEOS/sdks/" || true
+          ls "$THEOS/sdks/"
+
+      - name: Baixar template upstream (ImGui + Metal + Dobby + resolver il2cpp)
+        run: |
+          git clone --depth 1 "$UPSTREAM" /tmp/upstream
+          # Traz apenas as pastas de infraestrutura para o nosso projeto
+          cp -r /tmp/upstream/5Toubun "$PROJ/"
+          cp -r /tmp/upstream/Esp     "$PROJ/"
+          cp -r /tmp/upstream/IMGUI   "$PROJ/"
+          echo "=== Conteudo do projeto ==="
+          ls -la "$PROJ"
+
+      - name: Compilar (make package)
+        run: |
+          cd "$PROJ"
+          make clean || true
+          make package FINALPACKAGE=1 THEOS=$THEOS
+
+      - name: Extrair o .dylib do .deb (para Sideloadly)
+        run: |
+          cd "$PROJ"
+          mkdir -p out
+          DEB=$(ls packages/*.deb | head -n1)
+          echo "DEB: $DEB"
+          dpkg-deb -x "$DEB" _extract
+          # localiza o dylib gerado
+          find _extract -name '*.dylib' -exec cp {} out/pumenu.dylib \;
+          cp "$DEB" out/ || true
+          ls -la out
+
+      - name: Upload artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: pokemonunite-modmenu
+          path: |
+            ${{ env.PROJ }}/out/pumenu.dylib
+            ${{ env.PROJ }}/out/*.deb
+          if-no-files-found: error

@@ -1,0 +1,49 @@
+# ======================================================================
+# Arquivos grandes / binarios (GitHub bloqueia > 100MB) e dumps pesados
+# ======================================================================
+*.ipa
+*.rar
+*.zip
+*.so
+*.dylib
+*.dat
+*.a
+
+# Dumps IL2CPP (pesados e desnecessarios para o build do menu iOS)
+dump_pokemonunite/
+dump_pokemonunite_ios/
+memdump
+*.dump
+
+# ======================================================================
+# Infra do template baixada pela CI (NAO versionar - vem do upstream)
+# ======================================================================
+modmenu_ios_pokemonunite/5Toubun/
+modmenu_ios_pokemonunite/Esp/
+modmenu_ios_pokemonunite/IMGUI/
+
+# ======================================================================
+# Saidas de build
+# ======================================================================
+.theos/
+packages/
+obj/
+libs/
+_extract/
+_upstream/
+out/
+*.deb
+
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.apk
+
+# ======================================================================
+# Sistema / IDE
+# ======================================================================
+.DS_Store
+Thumbs.db
+*.log
+_tmp_*

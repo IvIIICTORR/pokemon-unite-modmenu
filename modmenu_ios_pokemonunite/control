@@ -1,0 +1,8 @@
+Package: com.victor.pumenu
+Name: Pokemon Unite Mod Menu
+Depends: mobilesubstrate
+Version: 1.0
+Architecture: iphoneos-arm
+Description: ImGui mod menu for Pokemon Unite (Map Hack + Aimbot)
+Maintainer: Victor
+Author: Victor
